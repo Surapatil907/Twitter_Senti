@@ -13,4 +13,4 @@ keras
 joblib
 
 # File handling and serialization
-pickle5
+pickle
