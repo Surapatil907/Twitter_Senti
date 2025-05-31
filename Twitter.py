@@ -8,8 +8,7 @@ import os
 def download_from_gdrive(file_id, destination):
     """Download file from Google Drive using file ID."""
     try:
-        URL = f"https://drive.google.com/uc?id={1zbxtWOf3FMSnniQ-EsWC6lrdN0PBZyn2
-}&export=download"
+        URL = f"https://drive.google.com/uc?id={"1zbxtWOf3FMSnniQ-EsWC6lrdN0PBZyn2"}&export=download"
         session = requests.Session()
         response = session.get(URL, stream=True)
 
