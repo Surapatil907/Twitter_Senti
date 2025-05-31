@@ -15,6 +15,7 @@ plotly
 
 # File handling and serialization
 pickle5
+google-colab
 
 # Google Colab integration (optional, only needed for Colab environment)
 google-colab
