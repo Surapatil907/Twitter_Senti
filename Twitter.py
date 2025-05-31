@@ -67,14 +67,77 @@ def download_model(file_id, output_path):
 
 @st.cache_resource
 def load_model(output_path):
-    """Load model with caching"""
+    """Load model with multiple fallback methods"""
+    # Method 1: Try pickle with different protocols
+    for protocol in [None, 2, 3, 4, 5]:
+        try:
+            with open(output_path, 'rb') as f:
+                if protocol is None:
+                    model = pickle.load(f)
+                else:
+                    model = pickle.load(f)  # Pickle protocol is handled automatically
+            logger.info(f"Model loaded successfully with pickle")
+            return model, None
+        except Exception as e:
+            logger.warning(f"Pickle load failed: {e}")
+            continue
+    
+    # Method 2: Try joblib (common for sklearn models)
     try:
-        with open(output_path, 'rb') as f:
-            model = pickle.load(f)
+        import joblib
+        model = joblib.load(output_path)
+        logger.info("Model loaded successfully with joblib")
         return model, None
     except Exception as e:
-        logger.error(f"Failed to load model: {e}")
-        return None, str(e)
+        logger.warning(f"Joblib load failed: {e}")
+    
+    # Method 3: Try TensorFlow/Keras loading methods
+    try:
+        import tensorflow as tf
+        # Try different TensorFlow loading methods
+        loading_methods = [
+            lambda: tf.keras.models.load_model(output_path.replace('.pkl', '')),
+            lambda: tf.saved_model.load(output_path.replace('.pkl', '')),
+            lambda: tf.keras.models.load_model(output_path)
+        ]
+        
+        for method in loading_methods:
+            try:
+                model = method()
+                logger.info("Model loaded successfully with TensorFlow")
+                return model, None
+            except:
+                continue
+                
+    except ImportError:
+        logger.warning("TensorFlow not available")
+    except Exception as e:
+        logger.warning(f"TensorFlow load failed: {e}")
+    
+    # Method 4: Try PyTorch loading
+    try:
+        import torch
+        model = torch.load(output_path, map_location='cpu')
+        logger.info("Model loaded successfully with PyTorch")
+        return model, None
+    except ImportError:
+        logger.warning("PyTorch not available")
+    except Exception as e:
+        logger.warning(f"PyTorch load failed: {e}")
+    
+    # Method 5: Try dill (alternative to pickle)
+    try:
+        import dill
+        with open(output_path, 'rb') as f:
+            model = dill.load(f)
+        logger.info("Model loaded successfully with dill")
+        return model, None
+    except ImportError:
+        logger.warning("Dill not available")
+    except Exception as e:
+        logger.warning(f"Dill load failed: {e}")
+    
+    return None, "Failed to load model with all available methods. Please check the model format."
 
 def validate_input(input_string):
     """Validate and parse user input"""
@@ -175,12 +238,68 @@ def main():
         else:
             st.info(f"📁 Model file found: {output_path}")
         
-        # Load model
+        # Load model with detailed error reporting
         with st.spinner("Loading model..."):
             model, error = load_model(output_path)
         
         if model is None:
             st.markdown(f'<div class="error-box">❌ Failed to load model: {error}</div>', unsafe_allow_html=True)
+            
+            # Show troubleshooting suggestions
+            with st.expander("🔧 Troubleshooting Tips"):
+                st.write("""
+                **Common solutions for model loading issues:**
+                
+                1. **Check model format**: Ensure your model is saved in a compatible format
+                2. **Try different file extensions**: 
+                   - `.pkl` or `.pickle` for pickle files
+                   - `.joblib` for scikit-learn models
+                   - `.h5` or directory for TensorFlow/Keras models
+                   - `.pt` or `.pth` for PyTorch models
+                
+                3. **Version compatibility**: Model might be saved with different library versions
+                4. **Environment issues**: Try reinstalling the required libraries
+                
+                **Alternative loading methods:**
+                """)
+                
+                # Show file info for debugging
+                if os.path.exists(output_path):
+                    file_size = os.path.getsize(output_path)
+                    st.write(f"- File size: {file_size} bytes")
+                    st.write(f"- File exists: ✅")
+                    
+                    # Try to read first few bytes to identify format
+                    try:
+                        with open(output_path, 'rb') as f:
+                            header = f.read(16)
+                        st.write(f"- File header: {header}")
+                    except:
+                        pass
+                else:
+                    st.write("- File exists: ❌")
+                
+                # Manual loading options
+                st.write("**Try manual loading:**")
+                st.code("""
+# Method 1: Joblib (for sklearn models)
+import joblib
+model = joblib.load('your_model.pkl')
+
+# Method 2: TensorFlow/Keras
+import tensorflow as tf
+model = tf.keras.models.load_model('your_model')
+
+# Method 3: PyTorch
+import torch
+model = torch.load('your_model.pkl', map_location='cpu')
+
+# Method 4: Dill (alternative to pickle)
+import dill
+with open('your_model.pkl', 'rb') as f:
+    model = dill.load(f)
+                """)
+            
             st.stop()
         else:
             st.markdown('<div class="info-box">✅ Model loaded successfully!</div>', unsafe_allow_html=True)
