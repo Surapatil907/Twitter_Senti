@@ -11,6 +11,3 @@ scikit-learn
 tensorflow
 keras
 joblib
-
-# File handling and serialization
-pickle
