@@ -9,6 +9,8 @@ pandas
 scikit-learn
 tensorflow
 keras
+joblib
+dill
 
 # File downloading and handling
 gdown
