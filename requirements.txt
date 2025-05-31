@@ -1,5 +1,6 @@
 # Core Streamlit and web framework
 streamlit
+requests
 
 # Data manipulation and numerical computing
 numpy
@@ -9,33 +10,7 @@ pandas
 scikit-learn
 tensorflow
 keras
-
-# Visualization
-plotly
+joblib
 
 # File handling and serialization
 pickle5
-google-colab
-
-# Google Colab integration (optional, only needed for Colab environment)
-google-colab
-
-# Logging and utilities
-pathlib2
-
-# Optional: For additional LSTM model support
-torch
-torchvision
-
-# Optional: For advanced data processing
-openpyxl
-xlrd
-
-# Optional: For enhanced model formats
-joblib
-dill
-
-# Development and testing (optional)
-pytest
-black
-flake8
