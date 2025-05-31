@@ -1,13 +1,22 @@
 # Core Streamlit and web framework
 streamlit
-requests
 
 # Data manipulation and numerical computing
 numpy
 pandas
 
-# Machine Learning and Model Handling
+# Machine learning and model handling
 scikit-learn
 tensorflow
 keras
-joblib
+
+# File downloading and handling
+gdown
+
+# Data visualization
+matplotlib
+seaborn
+plotly
+
+# Additional utilities
+pickle-mixin
