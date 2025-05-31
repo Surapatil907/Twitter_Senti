@@ -1,40 +1,40 @@
 # Core Streamlit and web framework
-streamlit>=1.28.0
+streamlit
 
 # Data manipulation and numerical computing
-numpy>=1.24.0
-pandas>=2.0.0
+numpy
+pandas
 
 # Machine Learning and Model Handling
-scikit-learn>=1.3.0
-tensorflow>=2.13.0
-keras>=2.13.0
+scikit-learn
+tensorflow
+keras
 
 # Visualization
-plotly>=5.15.0
+plotly
 
 # File handling and serialization
-pickle5>=0.0.12
+pickle5
 
 # Google Colab integration (optional, only needed for Colab environment)
-google-colab>=1.0.0
+google-colab
 
 # Logging and utilities
-pathlib2>=2.3.7
+pathlib2
 
 # Optional: For additional LSTM model support
-torch>=2.0.0
-torchvision>=0.15.0
+torch
+torchvision
 
 # Optional: For advanced data processing
-openpyxl>=3.1.0
-xlrd>=2.0.1
+openpyxl
+xlrd
 
 # Optional: For enhanced model formats
-joblib>=1.3.0
-dill>=0.3.7
+joblib
+dill
 
 # Development and testing (optional)
-pytest>=7.4.0
-black>=23.0.0
-flake8>=6.0.0
+pytest
+black
+flake8
