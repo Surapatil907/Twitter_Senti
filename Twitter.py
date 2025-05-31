@@ -55,89 +55,26 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 @st.cache_data
-def download_model(file_id, output_path):
+def download_model(model_url, model_path):
     """Download model from Google Drive with caching"""
     try:
-        url = f"https://drive.google.com/uc?id={file_id}"
-        gdown.download(url, output_path, quiet=False)
+        gdown.download(model_url, model_path, quiet=False)
         return True
     except Exception as e:
         logger.error(f"Failed to download model: {e}")
         return False
 
 @st.cache_resource
-def load_model(output_path):
-    """Load model with multiple fallback methods"""
-    # Method 1: Try pickle with different protocols
-    for protocol in [None, 2, 3, 4, 5]:
-        try:
-            with open(output_path, 'rb') as f:
-                if protocol is None:
-                    model = pickle.load(f)
-                else:
-                    model = pickle.load(f)  # Pickle protocol is handled automatically
-            logger.info(f"Model loaded successfully with pickle")
-            return model, None
-        except Exception as e:
-            logger.warning(f"Pickle load failed: {e}")
-            continue
-    
-    # Method 2: Try joblib (common for sklearn models)
+def load_model(model_path):
+    """Load model using joblib only"""
     try:
         import joblib
-        model = joblib.load(output_path)
+        model = joblib.load(model_path)
         logger.info("Model loaded successfully with joblib")
         return model, None
     except Exception as e:
-        logger.warning(f"Joblib load failed: {e}")
-    
-    # Method 3: Try TensorFlow/Keras loading methods
-    try:
-        import tensorflow as tf
-        # Try different TensorFlow loading methods
-        loading_methods = [
-            lambda: tf.keras.models.load_model(output_path.replace('.pkl', '')),
-            lambda: tf.saved_model.load(output_path.replace('.pkl', '')),
-            lambda: tf.keras.models.load_model(output_path)
-        ]
-        
-        for method in loading_methods:
-            try:
-                model = method()
-                logger.info("Model loaded successfully with TensorFlow")
-                return model, None
-            except:
-                continue
-                
-    except ImportError:
-        logger.warning("TensorFlow not available")
-    except Exception as e:
-        logger.warning(f"TensorFlow load failed: {e}")
-    
-    # Method 4: Try PyTorch loading
-    try:
-        import torch
-        model = torch.load(output_path, map_location='cpu')
-        logger.info("Model loaded successfully with PyTorch")
-        return model, None
-    except ImportError:
-        logger.warning("PyTorch not available")
-    except Exception as e:
-        logger.warning(f"PyTorch load failed: {e}")
-    
-    # Method 5: Try dill (alternative to pickle)
-    try:
-        import dill
-        with open(output_path, 'rb') as f:
-            model = dill.load(f)
-        logger.info("Model loaded successfully with dill")
-        return model, None
-    except ImportError:
-        logger.warning("Dill not available")
-    except Exception as e:
-        logger.warning(f"Dill load failed: {e}")
-    
-    return None, "Failed to load model with all available methods. Please check the model format."
+        logger.error(f"Failed to load model with joblib: {e}")
+        return None, str(e)
 
 def validate_input(input_string):
     """Validate and parse user input"""
@@ -188,16 +125,16 @@ def main():
     st.sidebar.header("Configuration")
     
     # Model file configuration
-    file_id = st.sidebar.text_input(
-        "Google Drive File ID", 
-        value='1zbxtWOf3FMSnniQ-EsWC6lrdN0PBZyn2',
-        help="Enter the Google Drive file ID for your model"
+    model_url = st.sidebar.text_input(
+        "Google Drive Model URL", 
+        value='https://drive.google.com/uc?id=1zbxtWOf3FMSnniQ-EsWC6lrdN0PBZyn2',
+        help="Enter the full Google Drive download URL for your model"
     )
     
-    output_path = st.sidebar.text_input(
+    model_path = st.sidebar.text_input(
         "Model File Name", 
         value='tuned_lstm_model.pkl',
-        help="Local filename for the downloaded model"
+        help="Local filename for the downloaded model (should end with .pkl)"
     )
     
     # Advanced options
@@ -224,91 +161,63 @@ def main():
         st.subheader("Model Loading")
         
         # Model download and loading
-        if not os.path.exists(output_path):
+        if not os.path.exists(model_path):
             st.warning("Model file not found locally. Downloading from Google Drive...")
             
             with st.spinner("Downloading model..."):
-                download_success = download_model(file_id, output_path)
+                download_success = download_model(model_url, model_path)
             
             if download_success:
                 st.success("✅ Model downloaded successfully!")
             else:
-                st.error("❌ Failed to download model. Please check the file ID and try again.")
+                st.error("❌ Failed to download model. Please check the URL and try again.")
                 st.stop()
         else:
-            st.info(f"📁 Model file found: {output_path}")
+            st.info(f"📁 Model file found: {model_path}")
         
-        # Load model with detailed error reporting
+        # Load model using TensorFlow/Keras only
         with st.spinner("Loading model..."):
-            model, error = load_model(output_path)
+            model, error = load_model(model_path)
         
         if model is None:
             st.markdown(f'<div class="error-box">❌ Failed to load model: {error}</div>', unsafe_allow_html=True)
             
-            # Show troubleshooting suggestions
-            with st.expander("🔧 Troubleshooting Tips"):
+            # Show specific troubleshooting for PKL models with joblib
+            with st.expander("🔧 PKL Model Troubleshooting"):
                 st.write("""
-                **Common solutions for model loading issues:**
+                **For .pkl model files using joblib:**
                 
-                1. **Check model format**: Ensure your model is saved in a compatible format
-                2. **Try different file extensions**: 
-                   - `.pkl` or `.pickle` for pickle files
-                   - `.joblib` for scikit-learn models
-                   - `.h5` or directory for TensorFlow/Keras models
-                   - `.pt` or `.pth` for PyTorch models
+                1. **Ensure joblib is installed**: `pip install joblib`
+                2. **Check model file integrity**: Re-download if corrupted
+                3. **Version compatibility**: Model saved with different joblib/sklearn version
+                4. **Model type**: Ensure model is compatible with joblib loading
                 
-                3. **Version compatibility**: Model might be saved with different library versions
-                4. **Environment issues**: Try reinstalling the required libraries
-                
-                **Alternative loading methods:**
+                **Manual loading test:**
                 """)
                 
-                # Show file info for debugging
-                if os.path.exists(output_path):
-                    file_size = os.path.getsize(output_path)
-                    st.write(f"- File size: {file_size} bytes")
-                    st.write(f"- File exists: ✅")
-                    
-                    # Try to read first few bytes to identify format
-                    try:
-                        with open(output_path, 'rb') as f:
-                            header = f.read(16)
-                        st.write(f"- File header: {header}")
-                    except:
-                        pass
-                else:
-                    st.write("- File exists: ❌")
-                
-                # Manual loading options
-                st.write("**Try manual loading:**")
                 st.code("""
-# Method 1: Joblib (for sklearn models)
 import joblib
-model = joblib.load('your_model.pkl')
 
-# Method 2: TensorFlow/Keras
-import tensorflow as tf
-model = tf.keras.models.load_model('your_model')
-
-# Method 3: PyTorch
-import torch
-model = torch.load('your_model.pkl', map_location='cpu')
-
-# Method 4: Dill (alternative to pickle)
-import dill
-with open('your_model.pkl', 'rb') as f:
-    model = dill.load(f)
+# Load PKL model with joblib
+try:
+    model = joblib.load('your_model.pkl')
+    print("Model loaded successfully!")
+    print(f"Model type: {type(model)}")
+    if hasattr(model, 'predict'):
+        print("Model has predict method")
+except Exception as e:
+    print(f"Error: {e}")
                 """)
             
             st.stop()
         else:
-            st.markdown('<div class="info-box">✅ Model loaded successfully!</div>', unsafe_allow_html=True)
+            st.markdown('<div class="info-box">✅ Model loaded successfully with joblib!</div>', unsafe_allow_html=True)
     
     with col2:
         st.subheader("Model Info")
-        if os.path.exists(output_path):
-            file_size = os.path.getsize(output_path) / (1024 * 1024)  # MB
-            mod_time = datetime.fromtimestamp(os.path.getmtime(output_path))
+        if os.path.exists(model_path):
+            file_size = os.path.getsize(model_path) / (1024 * 1024)  # MB
+            mod_time = datetime.fromtimestamp(os.path.getmtime(model_path))
             
             st.metric("File Size", f"{file_size:.2f} MB")
             st.metric("Last Modified", mod_time.strftime("%Y-%m-%d %H:%M"))
