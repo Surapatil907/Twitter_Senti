@@ -5,12 +5,9 @@ streamlit
 numpy
 pandas
 
-# Machine learning and model handling
-scikit-learn
-tensorflow
-keras
+# Machine learning - joblib for model loading
 joblib
-dill
+scikit-learn
 
 # File downloading and handling
 gdown
@@ -19,6 +16,3 @@ gdown
 matplotlib
 seaborn
 plotly
-
-# Additional utilities
-pickle-mixin
