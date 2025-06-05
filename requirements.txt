@@ -5,19 +5,14 @@ numpy
 
 # Machine Learning
 scikit-learn
-tensorflow
 
 # Model persistence
 joblib
 
+# Data visualization
+matplotlib
+seaborn
+
 # Text processing (optional but recommended)
 nltk
 regex
-
-# Additional utilities
-matplotlib
-seaborn
-plotly
-
-# For better performance (optional)
-numba
