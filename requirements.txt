@@ -1,18 +1,23 @@
-# Core Streamlit and web framework
+# Core dependencies
 streamlit
-
-# Data manipulation and numerical computing
-numpy
 pandas
+numpy
 
-# Machine learning - joblib for model loading
-joblib
+# Machine Learning
 scikit-learn
+tensorflow
 
-# File downloading and handling
-gdown
+# Model persistence
+joblib
 
-# Data visualization
+# Text processing (optional but recommended)
+nltk
+regex
+
+# Additional utilities
 matplotlib
 seaborn
 plotly
+
+# For better performance (optional)
+numba
