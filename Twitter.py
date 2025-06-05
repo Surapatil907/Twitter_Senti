@@ -362,4 +362,4 @@ else:
 
 # Footer
 st.markdown("---")
-st.markdown("Built with ❤️ using Streamlit and Scikit-learn")
+st.markdown("Built with ❤️ by Suraj Patil")
