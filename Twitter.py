@@ -6,11 +6,14 @@ import os
 from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.preprocessing import LabelEncoder
-from tensorflow.keras.models import Sequential, load_model
-from tensorflow.keras.layers import Dense, Dropout
-from tensorflow.keras.utils import to_categorical
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 import joblib
 import pickle
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 # Set page config
 st.set_page_config(
@@ -42,6 +45,13 @@ def preprocess_text(text):
 def train_model():
     st.header("📊 Train New Model")
     
+    # Model selection
+    st.subheader("Model Configuration")
+    model_type = st.selectbox(
+        "Choose Model Type:", 
+        ["Logistic Regression", "Random Forest", "Support Vector Machine"]
+    )
+    
     # File upload
     uploaded_file = st.file_uploader("Upload CSV file for training", type=["csv"])
     
@@ -65,6 +75,12 @@ def train_model():
             text_column = st.selectbox("Select text column:", df.columns)
             label_column = st.selectbox("Select label/category column:", df.columns)
             
+            # Advanced settings
+            with st.expander("Advanced Settings"):
+                max_features = st.slider("Max TF-IDF Features", 1000, 10000, 5000)
+                test_size = st.slider("Test Set Size", 0.1, 0.4, 0.2)
+                random_state = st.number_input("Random State", value=42)
+            
             if st.button("Start Training"):
                 with st.spinner("Training model..."):
                     # Data preprocessing
@@ -79,50 +95,47 @@ def train_model():
                     # Encode target variable
                     label_encoder = LabelEncoder()
                     y_encoded = label_encoder.fit_transform(y)
-                    y_categorical = to_categorical(y_encoded)
                     
                     # TF-IDF Vectorization
-                    vectorizer = TfidfVectorizer(max_features=5000, stop_words='english')
-                    X_vectorized = vectorizer.fit_transform(X).toarray()
+                    vectorizer = TfidfVectorizer(
+                        max_features=max_features, 
+                        stop_words='english',
+                        ngram_range=(1, 2)
+                    )
+                    X_vectorized = vectorizer.fit_transform(X)
                     
                     # Train-Test Split
                     X_train, X_test, y_train, y_test = train_test_split(
-                        X_vectorized, y_categorical, test_size=0.2, random_state=42
+                        X_vectorized, y_encoded, 
+                        test_size=test_size, 
+                        random_state=random_state,
+                        stratify=y_encoded
                     )
                     
-                    # Model Definition
-                    model = Sequential([
-                        Dense(256, activation='relu', input_shape=(X_train.shape[1],)),
-                        Dropout(0.5),
-                        Dense(128, activation='relu'),
-                        Dropout(0.3),
-                        Dense(64, activation='relu'),
-                        Dropout(0.2),
-                        Dense(y_categorical.shape[1], activation='softmax')
-                    ])
-                    
-                    model.compile(
-                        optimizer='adam',
-                        loss='categorical_crossentropy',
-                        metrics=['accuracy']
-                    )
+                    # Model Selection and Training
+                    if model_type == "Logistic Regression":
+                        model = LogisticRegression(random_state=random_state, max_iter=1000)
+                    elif model_type == "Random Forest":
+                        model = RandomForestClassifier(
+                            n_estimators=100, 
+                            random_state=random_state,
+                            n_jobs=-1
+                        )
+                    else:  # SVM
+                        model = SVC(
+                            kernel='linear', 
+                            random_state=random_state,
+                            probability=True
+                        )
                     
                     # Training with progress bar
                     progress_bar = st.progress(0)
-                    epochs = 10
-                    
-                    history = model.fit(
-                        X_train, y_train,
-                        epochs=epochs,
-                        batch_size=32,
-                        validation_split=0.1,
-                        verbose=0
-                    )
-                    
+                    model.fit(X_train, y_train)
                     progress_bar.progress(100)
                     
                     # Evaluate
-                    loss, accuracy = model.evaluate(X_test, y_test, verbose=0)
+                    y_pred = model.predict(X_test)
+                    accuracy = accuracy_score(y_test, y_pred)
                     
                     # Display results
                     st.success("Training completed!")
@@ -130,17 +143,53 @@ def train_model():
                     with col1:
                         st.metric("Test Accuracy", f"{accuracy:.3f}")
                     with col2:
-                        st.metric("Test Loss", f"{loss:.3f}")
+                        st.metric("Model Type", model_type)
+                    
+                    # Classification Report
+                    st.subheader("Classification Report")
+                    class_names = label_encoder.classes_
+                    report = classification_report(
+                        y_test, y_pred, 
+                        target_names=class_names,
+                        output_dict=True
+                    )
+                    
+                    # Display metrics table
+                    metrics_df = pd.DataFrame(report).transpose()
+                    st.dataframe(metrics_df.round(3))
+                    
+                    # Confusion Matrix
+                    st.subheader("Confusion Matrix")
+                    cm = confusion_matrix(y_test, y_pred)
+                    fig, ax = plt.subplots(figsize=(8, 6))
+                    sns.heatmap(
+                        cm, 
+                        annot=True, 
+                        fmt='d', 
+                        cmap='Blues',
+                        xticklabels=class_names,
+                        yticklabels=class_names,
+                        ax=ax
+                    )
+                    ax.set_ylabel('Actual')
+                    ax.set_xlabel('Predicted')
+                    ax.set_title('Confusion Matrix')
+                    st.pyplot(fig)
                     
                     # Save model and components
-                    model.save("text_classifier_model.h5")
+                    joblib.dump(model, "sentiment_model.pkl")
                     joblib.dump(vectorizer, "tfidf_vectorizer.pkl")
                     joblib.dump(label_encoder, "label_encoder.pkl")
                     
-                    # Save class names for reference
-                    class_names = label_encoder.classes_
-                    with open("class_names.pkl", "wb") as f:
-                        pickle.dump(class_names, f)
+                    # Save additional info
+                    model_info = {
+                        'model_type': model_type,
+                        'accuracy': accuracy,
+                        'class_names': class_names.tolist(),
+                        'feature_count': max_features
+                    }
+                    with open("model_info.pkl", "wb") as f:
+                        pickle.dump(model_info, f)
                     
                     st.success("Model and components saved successfully!")
                     
@@ -158,7 +207,7 @@ def predict_sentiment():
     st.header("🎯 Predict Sentiment")
     
     # Check if model files exist
-    model_files = ["text_classifier_model.h5", "tfidf_vectorizer.pkl", "label_encoder.pkl"]
+    model_files = ["sentiment_model.pkl", "tfidf_vectorizer.pkl", "label_encoder.pkl"]
     missing_files = [f for f in model_files if not os.path.exists(f)]
     
     if missing_files:
@@ -169,23 +218,29 @@ def predict_sentiment():
     try:
         # Load model and components
         with st.spinner("Loading model..."):
-            model = load_model("text_classifier_model.h5")
+            model = joblib.load("sentiment_model.pkl")
             vectorizer = joblib.load("tfidf_vectorizer.pkl")
             label_encoder = joblib.load("label_encoder.pkl")
             
-            # Load class names if available
+            # Load model info if available
             try:
-                with open("class_names.pkl", "rb") as f:
-                    class_names = pickle.load(f)
+                with open("model_info.pkl", "rb") as f:
+                    model_info = pickle.load(f)
             except:
-                class_names = label_encoder.classes_
+                model_info = {
+                    'model_type': 'Unknown',
+                    'accuracy': 'Unknown',
+                    'class_names': label_encoder.classes_.tolist()
+                }
         
         st.success("Model loaded successfully!")
         
         # Display model info
         with st.expander("Model Information"):
-            st.write(f"**Number of classes:** {len(class_names)}")
-            st.write(f"**Classes:** {', '.join(class_names)}")
+            st.write(f"**Model Type:** {model_info.get('model_type', 'Unknown')}")
+            st.write(f"**Accuracy:** {model_info.get('accuracy', 'Unknown')}")
+            st.write(f"**Number of classes:** {len(model_info['class_names'])}")
+            st.write(f"**Classes:** {', '.join(model_info['class_names'])}")
             st.write(f"**Vocabulary size:** {len(vectorizer.vocabulary_)}")
         
         # Prediction interface
@@ -201,13 +256,14 @@ def predict_sentiment():
                 if user_input.strip():
                     # Preprocess and predict
                     processed_text = preprocess_text(user_input)
-                    text_vectorized = vectorizer.transform([processed_text]).toarray()
+                    text_vectorized = vectorizer.transform([processed_text])
                     
                     # Get prediction
-                    prediction = model.predict(text_vectorized, verbose=0)
-                    predicted_class_idx = np.argmax(prediction[0])
-                    predicted_class = class_names[predicted_class_idx]
-                    confidence = prediction[0][predicted_class_idx]
+                    prediction = model.predict(text_vectorized)[0]
+                    probabilities = model.predict_proba(text_vectorized)[0]
+                    
+                    predicted_class = label_encoder.inverse_transform([prediction])[0]
+                    confidence = np.max(probabilities)
                     
                     # Display results
                     st.subheader("Prediction Results")
@@ -220,9 +276,10 @@ def predict_sentiment():
                     
                     # Show all class probabilities
                     st.subheader("All Class Probabilities")
+                    class_names = model_info['class_names']
                     prob_df = pd.DataFrame({
                         'Class': class_names,
-                        'Probability': prediction[0]
+                        'Probability': probabilities
                     }).sort_values('Probability', ascending=False)
                     
                     st.dataframe(prob_df, use_container_width=True)
@@ -251,12 +308,14 @@ def predict_sentiment():
                             texts = df[text_column].apply(preprocess_text)
                             
                             # Vectorize
-                            texts_vectorized = vectorizer.transform(texts).toarray()
+                            texts_vectorized = vectorizer.transform(texts)
                             
                             # Predict
-                            predictions = model.predict(texts_vectorized, verbose=0)
-                            predicted_classes = [class_names[np.argmax(pred)] for pred in predictions]
-                            confidences = [np.max(pred) for pred in predictions]
+                            predictions = model.predict(texts_vectorized)
+                            probabilities = model.predict_proba(texts_vectorized)
+                            
+                            predicted_classes = label_encoder.inverse_transform(predictions)
+                            confidences = np.max(probabilities, axis=1)
                             
                             # Create results dataframe
                             results_df = df.copy()
@@ -280,6 +339,15 @@ def predict_sentiment():
                             summary = pd.Series(predicted_classes).value_counts()
                             st.bar_chart(summary)
                             
+                            # Show confidence distribution
+                            st.subheader("Confidence Distribution")
+                            fig, ax = plt.subplots(figsize=(8, 4))
+                            ax.hist(confidences, bins=20, alpha=0.7, color='skyblue')
+                            ax.set_xlabel('Confidence Score')
+                            ax.set_ylabel('Frequency')
+                            ax.set_title('Distribution of Prediction Confidence')
+                            st.pyplot(fig)
+                            
                 except Exception as e:
                     st.error(f"Error processing file: {str(e)}")
     
@@ -294,4 +362,4 @@ else:
 
 # Footer
 st.markdown("---")
-st.markdown("Built with ❤️ using Streamlit and TensorFlow")
+st.markdown("Built with ❤️ using Streamlit and Scikit-learn")
