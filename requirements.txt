@@ -1,27 +1,25 @@
-streamlit
-pandas
-numpy
-scikit-learn
-joblib
-seaborn
-matplotlib
-tensorflow-cpu
-regex
-# Core dependencies
-streamlit
-pandas
-numpy
+# Core Libraries
+streamlit>=1.28.0
+pandas>=1.5.0
+numpy>=1.21.0
 
-# Machine Learning
-scikit-learn
+# Machine Learning - Traditional
+scikit-learn>=1.3.0
+joblib>=1.3.0
 
-# Model persistence
-joblib
+# Deep Learning
+tensorflow>=2.13.0
+keras>=2.13.0
 
-# Data visualization
-matplotlib
-seaborn
+# Data Visualization
+matplotlib>=3.5.0
+seaborn>=0.12.0
 
-# Text processing (optional but recommended)
-nltk
-regex
+# Text Processing
+nltk>=3.8.0
+
+# Utilities
+pickle-mixin>=1.0.2
+
+# Optional: For better performance
+# tensorflow-gpu>=2.13.0  # Uncomment if you have GPU support
