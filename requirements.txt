@@ -1,34 +1,27 @@
-# Core Libraries
-streamlit>=1.28.0
-pandas>=1.5.0
-numpy>=1.21.0
+streamlit
+pandas
+numpy
+scikit-learn
+joblib
+seaborn
+matplotlib
+tensorflow-cpu
+regex
+# Core dependencies
+streamlit
+pandas
+numpy
 
-# Machine Learning - Traditional
-scikit-learn>=1.3.0
-joblib>=1.3.0
+# Machine Learning
+scikit-learn
 
-# Deep Learning (Optional - for advanced models)
-# Choose ONE of the following options based on your system:
+# Model persistence
+joblib
 
-# Option 1: CPU-only TensorFlow (recommended for most users)
-tensorflow-cpu>=2.13.0
+# Data visualization
+matplotlib
+seaborn
 
-# Option 2: Full TensorFlow (includes GPU support if available)
-# tensorflow>=2.13.0
-
-# Option 3: If you have compatibility issues, try older versions
-# tensorflow-cpu>=2.10.0,<2.13.0
-
-# Data Visualization
-matplotlib>=3.5.0
-seaborn>=0.12.0
-
-# Text Processing
-nltk>=3.8.0
-
-# Utilities
-pickle-mixin>=1.0.2
-
-# Alternative Deep Learning Frameworks (if TensorFlow doesn't work)
-# torch>=1.13.0
-# torchtext>=0.14.0
+# Text processing (optional but recommended)
+nltk
+regex
