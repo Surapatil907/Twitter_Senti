@@ -17,13 +17,13 @@ import matplotlib.pyplot as plt
 
 # Set page config
 st.set_page_config(
-    page_title="NLP Sentiment Analysis",
+    page_title="Sentiment Analysis",
     page_icon="🔍",
     layout="wide"
 )
 
 # Title and description
-st.title("🔍 NLP Sentiment Analysis Tool")
+st.title("🔍Sentiment Analysis Tool")
 st.markdown("---")
 
 # Sidebar for navigation
