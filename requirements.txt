@@ -5,7 +5,5 @@ scikit-learn
 joblib
 seaborn
 matplotlib
-tensorflow
-keras
-pickle-mixin
+tensorflow-cpu
 regex
