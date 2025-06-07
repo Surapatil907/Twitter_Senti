@@ -15,16 +15,22 @@ import pickle
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-# Deep Learning imports
-import tensorflow as tf
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, Dropout, LSTM, GRU, Embedding, Bidirectional
-from tensorflow.keras.preprocessing.text import Tokenizer
-from tensorflow.keras.preprocessing.sequence import pad_sequences
-from tensorflow.keras.utils import to_categorical
-from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
-import warnings
-warnings.filterwarnings('ignore')
+# Deep Learning imports with error handling
+TENSORFLOW_AVAILABLE = True
+try:
+    import tensorflow as tf
+    from tensorflow.keras.models import Sequential
+    from tensorflow.keras.layers import Dense, Dropout, LSTM, GRU, Embedding, Bidirectional
+    from tensorflow.keras.preprocessing.text import Tokenizer
+    from tensorflow.keras.preprocessing.sequence import pad_sequences
+    from tensorflow.keras.utils import to_categorical
+    from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
+    import warnings
+    warnings.filterwarnings('ignore')
+except ImportError as e:
+    TENSORFLOW_AVAILABLE = False
+    st.warning("⚠️ TensorFlow not available. Deep learning models (ANN, LSTM, GRU) will be disabled.")
+    st.info("To enable deep learning models, please install TensorFlow: `pip install tensorflow`")
 
 # Set page config
 st.set_page_config(
@@ -111,11 +117,13 @@ def train_model():
     
     # Model selection
     st.subheader("Model Configuration")
-    model_type = st.selectbox(
-        "Choose Model Type:", 
-        ["Logistic Regression", "Random Forest", "Support Vector Machine", 
-         "Artificial Neural Network (ANN)", "LSTM Network", "GRU Network"]
-    )
+    
+    # Available models based on TensorFlow availability
+    available_models = ["Logistic Regression", "Random Forest", "Support Vector Machine"]
+    if TENSORFLOW_AVAILABLE:
+        available_models.extend(["Artificial Neural Network (ANN)", "LSTM Network", "GRU Network"])
+    
+    model_type = st.selectbox("Choose Model Type:", available_models)
     
     # File upload
     uploaded_file = st.file_uploader("Upload CSV file for training", type=["csv"])
@@ -141,7 +149,7 @@ def train_model():
             label_column = st.selectbox("Select label/category column:", df.columns)
             
             # Check if deep learning model is selected
-            is_deep_learning = model_type in ["Artificial Neural Network (ANN)", "LSTM Network", "GRU Network"]
+            is_deep_learning = TENSORFLOW_AVAILABLE and model_type in ["Artificial Neural Network (ANN)", "LSTM Network", "GRU Network"]
             
             # Advanced settings
             with st.expander("Advanced Settings"):
@@ -343,7 +351,7 @@ def train_model():
                     # Classification Report
                     st.subheader("Classification Report")
                     class_names = label_encoder.classes_
-                    if is_deep_learning:
+                    if is_deep_learning and TENSORFLOW_AVAILABLE:
                         report = classification_report(
                             y_test_labels, y_pred, 
                             target_names=class_names,
@@ -440,7 +448,7 @@ def predict_sentiment():
         
         # Load model and components
         with st.spinner("Loading model..."):
-            if is_deep_learning:
+            if is_deep_learning and TENSORFLOW_AVAILABLE:
                 model = tf.keras.models.load_model(model_file)
                 if model_info['model_type'] == "Artificial Neural Network (ANN)":
                     vectorizer = joblib.load("tfidf_vectorizer.pkl")
@@ -551,7 +559,7 @@ def predict_sentiment():
                             # Preprocess texts
                             texts = df[text_column].apply(preprocess_text)
                             
-                            if is_deep_learning:
+                            if is_deep_learning and TENSORFLOW_AVAILABLE:
                                 if model_info['model_type'] == "Artificial Neural Network (ANN)":
                                     # Use TF-IDF for ANN
                                     texts_vectorized = vectorizer.transform(texts).toarray()
