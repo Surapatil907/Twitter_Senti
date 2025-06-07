@@ -15,14 +15,23 @@ import pickle
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-# Deep Learning imports
-import tensorflow as tf
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, LSTM, GRU, Embedding, Dropout, GlobalMaxPooling1D
-from tensorflow.keras.preprocessing.text import Tokenizer
-from tensorflow.keras.preprocessing.sequence import pad_sequences
-from tensorflow.keras.callbacks import EarlyStopping
-from tensorflow.keras.utils import to_categorical
+# Deep Learning imports (with error handling)
+try:
+    import tensorflow as tf
+    from tensorflow.keras.models import Sequential
+    from tensorflow.keras.layers import Dense, LSTM, GRU, Embedding, Dropout, GlobalMaxPooling1D
+    from tensorflow.keras.preprocessing.text import Tokenizer
+    from tensorflow.keras.preprocessing.sequence import pad_sequences
+    from tensorflow.keras.callbacks import EarlyStopping
+    from tensorflow.keras.utils import to_categorical
+    TENSORFLOW_AVAILABLE = True
+except ImportError as e:
+    st.warning("TensorFlow is not available. Deep Learning models will be disabled.")
+    TENSORFLOW_AVAILABLE = False
+except Exception as e:
+    st.error(f"TensorFlow import error: {str(e)}")
+    st.warning("Deep Learning models will be disabled due to TensorFlow compatibility issues.")
+    TENSORFLOW_AVAILABLE = False
 
 # Set page config
 st.set_page_config(
@@ -109,11 +118,16 @@ def train_model():
     
     # Model selection
     st.subheader("Model Configuration")
-    model_type = st.selectbox(
-        "Choose Model Type:", 
-        ["Logistic Regression", "Random Forest", "Support Vector Machine", 
-         "Artificial Neural Network (ANN)", "LSTM", "GRU"]
-    )
+    
+    # Available models based on TensorFlow availability
+    if TENSORFLOW_AVAILABLE:
+        available_models = ["Logistic Regression", "Random Forest", "Support Vector Machine", 
+                          "Artificial Neural Network (ANN)", "LSTM", "GRU"]
+    else:
+        available_models = ["Logistic Regression", "Random Forest", "Support Vector Machine"]
+        st.info("📌 Deep Learning models (ANN, LSTM, GRU) are not available due to TensorFlow compatibility issues. Traditional ML models are still available.")
+    
+    model_type = st.selectbox("Choose Model Type:", available_models)
     
     # File upload
     uploaded_file = st.file_uploader("Upload CSV file for training", type=["csv"])
@@ -140,7 +154,7 @@ def train_model():
             
             # Advanced settings
             with st.expander("Advanced Settings"):
-                if model_type in ["Artificial Neural Network (ANN)", "LSTM", "GRU"]:
+                if TENSORFLOW_AVAILABLE and model_type in ["Artificial Neural Network (ANN)", "LSTM", "GRU"]:
                     max_features = st.slider("Max Vocabulary Size", 1000, 20000, 10000)
                     max_length = st.slider("Max Sequence Length", 50, 500, 200)
                     epochs = st.slider("Training Epochs", 5, 50, 20)
@@ -167,7 +181,7 @@ def train_model():
                     y_encoded = label_encoder.fit_transform(y)
                     num_classes = len(label_encoder.classes_)
                     
-                    if model_type in ["Artificial Neural Network (ANN)", "LSTM", "GRU"]:
+                    if TENSORFLOW_AVAILABLE and model_type in ["Artificial Neural Network (ANN)", "LSTM", "GRU"]:
                         # Deep Learning Models
                         st.info("Training Deep Learning Model...")
                         
