@@ -15,24 +15,6 @@ import pickle
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-# Deep Learning imports (with error handling)
-try:
-    import tensorflow as tf
-    from tensorflow.keras.models import Sequential
-    from tensorflow.keras.layers import Dense, LSTM, GRU, Embedding, Dropout, GlobalMaxPooling1D
-    from tensorflow.keras.preprocessing.text import Tokenizer
-    from tensorflow.keras.preprocessing.sequence import pad_sequences
-    from tensorflow.keras.callbacks import EarlyStopping
-    from tensorflow.keras.utils import to_categorical
-    TENSORFLOW_AVAILABLE = True
-except ImportError as e:
-    st.warning("TensorFlow is not available. Deep Learning models will be disabled.")
-    TENSORFLOW_AVAILABLE = False
-except Exception as e:
-    st.error(f"TensorFlow import error: {str(e)}")
-    st.warning("Deep Learning models will be disabled due to TensorFlow compatibility issues.")
-    TENSORFLOW_AVAILABLE = False
-
 # Set page config
 st.set_page_config(
     page_title="Sentiment Analysis",
@@ -60,74 +42,15 @@ def preprocess_text(text):
     text = ' '.join(text.split())
     return text
 
-def create_ann_model(vocab_size, max_length, num_classes):
-    """Create Artificial Neural Network model"""
-    model = Sequential([
-        Embedding(vocab_size, 128, input_length=max_length),
-        GlobalMaxPooling1D(),
-        Dense(128, activation='relu'),
-        Dropout(0.5),
-        Dense(64, activation='relu'),
-        Dropout(0.3),
-        Dense(num_classes, activation='softmax')
-    ])
-    
-    model.compile(
-        optimizer='adam',
-        loss='categorical_crossentropy',
-        metrics=['accuracy']
-    )
-    return model
-
-def create_lstm_model(vocab_size, max_length, num_classes):
-    """Create LSTM model"""
-    model = Sequential([
-        Embedding(vocab_size, 128, input_length=max_length),
-        LSTM(128, dropout=0.2, recurrent_dropout=0.2),
-        Dense(64, activation='relu'),
-        Dropout(0.5),
-        Dense(num_classes, activation='softmax')
-    ])
-    
-    model.compile(
-        optimizer='adam',
-        loss='categorical_crossentropy',
-        metrics=['accuracy']
-    )
-    return model
-
-def create_gru_model(vocab_size, max_length, num_classes):
-    """Create GRU model"""
-    model = Sequential([
-        Embedding(vocab_size, 128, input_length=max_length),
-        GRU(128, dropout=0.2, recurrent_dropout=0.2),
-        Dense(64, activation='relu'),
-        Dropout(0.5),
-        Dense(num_classes, activation='softmax')
-    ])
-    
-    model.compile(
-        optimizer='adam',
-        loss='categorical_crossentropy',
-        metrics=['accuracy']
-    )
-    return model
-
 def train_model():
     st.header("📊 Train New Model")
     
     # Model selection
     st.subheader("Model Configuration")
-    
-    # Available models based on TensorFlow availability
-    if TENSORFLOW_AVAILABLE:
-        available_models = ["Logistic Regression", "Random Forest", "Support Vector Machine", 
-                          "Artificial Neural Network (ANN)", "LSTM", "GRU"]
-    else:
-        available_models = ["Logistic Regression", "Random Forest", "Support Vector Machine"]
-        st.info("📌 Deep Learning models (ANN, LSTM, GRU) are not available due to TensorFlow compatibility issues. Traditional ML models are still available.")
-    
-    model_type = st.selectbox("Choose Model Type:", available_models)
+    model_type = st.selectbox(
+        "Choose Model Type:", 
+        ["Logistic Regression", "Random Forest", "Support Vector Machine"]
+    )
     
     # File upload
     uploaded_file = st.file_uploader("Upload CSV file for training", type=["csv"])
@@ -154,14 +77,7 @@ def train_model():
             
             # Advanced settings
             with st.expander("Advanced Settings"):
-                if TENSORFLOW_AVAILABLE and model_type in ["Artificial Neural Network (ANN)", "LSTM", "GRU"]:
-                    max_features = st.slider("Max Vocabulary Size", 1000, 20000, 10000)
-                    max_length = st.slider("Max Sequence Length", 50, 500, 200)
-                    epochs = st.slider("Training Epochs", 5, 50, 20)
-                    batch_size = st.selectbox("Batch Size", [16, 32, 64, 128], index=1)
-                else:
-                    max_features = st.slider("Max TF-IDF Features", 1000, 10000, 5000)
-                    
+                max_features = st.slider("Max TF-IDF Features", 1000, 10000, 5000)
                 test_size = st.slider("Test Set Size", 0.1, 0.4, 0.2)
                 random_state = st.number_input("Random State", value=42)
             
@@ -179,169 +95,49 @@ def train_model():
                     # Encode target variable
                     label_encoder = LabelEncoder()
                     y_encoded = label_encoder.fit_transform(y)
-                    num_classes = len(label_encoder.classes_)
                     
-                    if TENSORFLOW_AVAILABLE and model_type in ["Artificial Neural Network (ANN)", "LSTM", "GRU"]:
-                        # Deep Learning Models
-                        st.info("Training Deep Learning Model...")
-                        
-                        # Tokenization for deep learning
-                        tokenizer = Tokenizer(num_words=max_features, oov_token="<OOV>")
-                        tokenizer.fit_on_texts(X)
-                        X_sequences = tokenizer.texts_to_sequences(X)
-                        X_padded = pad_sequences(X_sequences, maxlen=max_length, padding='post')
-                        
-                        # Convert labels to categorical
-                        y_categorical = to_categorical(y_encoded, num_classes=num_classes)
-                        
-                        # Train-Test Split
-                        X_train, X_test, y_train, y_test = train_test_split(
-                            X_padded, y_categorical, 
-                            test_size=test_size, 
-                            random_state=random_state,
-                            stratify=y_encoded
-                        )
-                        
-                        # Create model based on selection
-                        vocab_size = len(tokenizer.word_index) + 1
-                        
-                        if model_type == "Artificial Neural Network (ANN)":
-                            model = create_ann_model(vocab_size, max_length, num_classes)
-                        elif model_type == "LSTM":
-                            model = create_lstm_model(vocab_size, max_length, num_classes)
-                        else:  # GRU
-                            model = create_gru_model(vocab_size, max_length, num_classes)
-                        
-                        # Early stopping callback
-                        early_stopping = EarlyStopping(
-                            monitor='val_loss', 
-                            patience=5, 
-                            restore_best_weights=True
-                        )
-                        
-                        # Training with progress updates
-                        progress_bar = st.progress(0)
-                        status_text = st.empty()
-                        
-                        history = model.fit(
-                            X_train, y_train,
-                            batch_size=batch_size,
-                            epochs=epochs,
-                            validation_data=(X_test, y_test),
-                            callbacks=[early_stopping],
-                            verbose=0
-                        )
-                        
-                        progress_bar.progress(100)
-                        status_text.text("Training completed!")
-                        
-                        # Evaluate
-                        y_pred_proba = model.predict(X_test)
-                        y_pred = np.argmax(y_pred_proba, axis=1)
-                        y_test_labels = np.argmax(y_test, axis=1)
-                        accuracy = accuracy_score(y_test_labels, y_pred)
-                        
-                        # Save deep learning components
-                        model.save("sentiment_dl_model.h5")
-                        joblib.dump(tokenizer, "tokenizer.pkl")
-                        joblib.dump(label_encoder, "label_encoder.pkl")
-                        
-                        # Plot training history
-                        st.subheader("Training History")
-                        col1, col2 = st.columns(2)
-                        
-                        with col1:
-                            fig, ax = plt.subplots(figsize=(8, 6))
-                            ax.plot(history.history['accuracy'], label='Training Accuracy')
-                            ax.plot(history.history['val_accuracy'], label='Validation Accuracy')
-                            ax.set_title('Model Accuracy')
-                            ax.set_xlabel('Epoch')
-                            ax.set_ylabel('Accuracy')
-                            ax.legend()
-                            st.pyplot(fig)
-                        
-                        with col2:
-                            fig, ax = plt.subplots(figsize=(8, 6))
-                            ax.plot(history.history['loss'], label='Training Loss')
-                            ax.plot(history.history['val_loss'], label='Validation Loss')
-                            ax.set_title('Model Loss')
-                            ax.set_xlabel('Epoch')
-                            ax.set_ylabel('Loss')
-                            ax.legend()
-                            st.pyplot(fig)
-                        
-                        # Save additional info for deep learning
-                        model_info = {
-                            'model_type': model_type,
-                            'accuracy': accuracy,
-                            'class_names': label_encoder.classes_.tolist(),
-                            'vocab_size': vocab_size,
-                            'max_length': max_length,
-                            'is_deep_learning': True
-                        }
-                        with open("model_info.pkl", "wb") as f:
-                            pickle.dump(model_info, f)
-                        
-                    else:
-                        # Traditional ML Models
-                        # TF-IDF Vectorization
-                        vectorizer = TfidfVectorizer(
-                            max_features=max_features, 
-                            stop_words='english',
-                            ngram_range=(1, 2)
-                        )
-                        X_vectorized = vectorizer.fit_transform(X)
-                        
-                        # Train-Test Split
-                        X_train, X_test, y_train, y_test = train_test_split(
-                            X_vectorized, y_encoded, 
-                            test_size=test_size, 
-                            random_state=random_state,
-                            stratify=y_encoded
-                        )
-                        
-                        # Model Selection and Training
-                        if model_type == "Logistic Regression":
-                            model = LogisticRegression(random_state=random_state, max_iter=1000)
-                        elif model_type == "Random Forest":
-                            model = RandomForestClassifier(
-                                n_estimators=100, 
-                                random_state=random_state,
-                                n_jobs=-1
-                            )
-                        else:  # SVM
-                            model = SVC(
-                                kernel='linear', 
-                                random_state=random_state,
-                                probability=True
-                            )
-                        
-                        # Training with progress bar
-                        progress_bar = st.progress(0)
-                        model.fit(X_train, y_train)
-                        progress_bar.progress(100)
-                        
-                        # Evaluate
-                        y_pred = model.predict(X_test)
-                        accuracy = accuracy_score(y_test, y_pred)
-                        
-                        # Save traditional ML components
-                        joblib.dump(model, "sentiment_model.pkl")
-                        joblib.dump(vectorizer, "tfidf_vectorizer.pkl")
-                        joblib.dump(label_encoder, "label_encoder.pkl")
-                        
-                        # Save additional info for traditional ML
-                        model_info = {
-                            'model_type': model_type,
-                            'accuracy': accuracy,
-                            'class_names': label_encoder.classes_.tolist(),
-                            'feature_count': max_features,
-                            'is_deep_learning': False
-                        }
-                        with open("model_info.pkl", "wb") as f:
-                            pickle.dump(model_info, f)
+                    # TF-IDF Vectorization
+                    vectorizer = TfidfVectorizer(
+                        max_features=max_features, 
+                        stop_words='english',
+                        ngram_range=(1, 2)
+                    )
+                    X_vectorized = vectorizer.fit_transform(X)
                     
-                    # Display results (common for all models)
+                    # Train-Test Split
+                    X_train, X_test, y_train, y_test = train_test_split(
+                        X_vectorized, y_encoded, 
+                        test_size=test_size, 
+                        random_state=random_state,
+                        stratify=y_encoded
+                    )
+                    
+                    # Model Selection and Training
+                    if model_type == "Logistic Regression":
+                        model = LogisticRegression(random_state=random_state, max_iter=1000)
+                    elif model_type == "Random Forest":
+                        model = RandomForestClassifier(
+                            n_estimators=100, 
+                            random_state=random_state,
+                            n_jobs=-1
+                        )
+                    else:  # SVM
+                        model = SVC(
+                            kernel='linear', 
+                            random_state=random_state,
+                            probability=True
+                        )
+                    
+                    # Training with progress bar
+                    progress_bar = st.progress(0)
+                    model.fit(X_train, y_train)
+                    progress_bar.progress(100)
+                    
+                    # Evaluate
+                    y_pred = model.predict(X_test)
+                    accuracy = accuracy_score(y_test, y_pred)
+                    
+                    # Display results
                     st.success("Training completed!")
                     col1, col2 = st.columns(2)
                     with col1:
@@ -352,21 +148,11 @@ def train_model():
                     # Classification Report
                     st.subheader("Classification Report")
                     class_names = label_encoder.classes_
-                    
-                    if model_type in ["Artificial Neural Network (ANN)", "LSTM", "GRU"]:
-                        report = classification_report(
-                            y_test_labels, y_pred, 
-                            target_names=class_names,
-                            output_dict=True
-                        )
-                        cm = confusion_matrix(y_test_labels, y_pred)
-                    else:
-                        report = classification_report(
-                            y_test, y_pred, 
-                            target_names=class_names,
-                            output_dict=True
-                        )
-                        cm = confusion_matrix(y_test, y_pred)
+                    report = classification_report(
+                        y_test, y_pred, 
+                        target_names=class_names,
+                        output_dict=True
+                    )
                     
                     # Display metrics table
                     metrics_df = pd.DataFrame(report).transpose()
@@ -374,6 +160,7 @@ def train_model():
                     
                     # Confusion Matrix
                     st.subheader("Confusion Matrix")
+                    cm = confusion_matrix(y_test, y_pred)
                     fig, ax = plt.subplots(figsize=(8, 6))
                     sns.heatmap(
                         cm, 
@@ -388,6 +175,21 @@ def train_model():
                     ax.set_xlabel('Predicted')
                     ax.set_title('Confusion Matrix')
                     st.pyplot(fig)
+                    
+                    # Save model and components
+                    joblib.dump(model, "sentiment_model.pkl")
+                    joblib.dump(vectorizer, "tfidf_vectorizer.pkl")
+                    joblib.dump(label_encoder, "label_encoder.pkl")
+                    
+                    # Save additional info
+                    model_info = {
+                        'model_type': model_type,
+                        'accuracy': accuracy,
+                        'class_names': class_names.tolist(),
+                        'feature_count': max_features
+                    }
+                    with open("model_info.pkl", "wb") as f:
+                        pickle.dump(model_info, f)
                     
                     st.success("Model and components saved successfully!")
                     
@@ -404,58 +206,42 @@ def train_model():
 def predict_sentiment():
     st.header("🎯 Predict Sentiment")
     
+    # Check if model files exist
+    model_files = ["sentiment_model.pkl", "tfidf_vectorizer.pkl", "label_encoder.pkl"]
+    missing_files = [f for f in model_files if not os.path.exists(f)]
+    
+    if missing_files:
+        st.error(f"Missing model files: {', '.join(missing_files)}")
+        st.info("Please train a model first using the 'Train New Model' mode.")
+        return
+    
     try:
-        # Load model info first to determine model type
-        with open("model_info.pkl", "rb") as f:
-            model_info = pickle.load(f)
-        
-        is_deep_learning = model_info.get('is_deep_learning', False)
-        
-        if is_deep_learning:
-            # Check for deep learning model files
-            required_files = ["sentiment_dl_model.h5", "tokenizer.pkl", "label_encoder.pkl"]
-            missing_files = [f for f in required_files if not os.path.exists(f)]
+        # Load model and components
+        with st.spinner("Loading model..."):
+            model = joblib.load("sentiment_model.pkl")
+            vectorizer = joblib.load("tfidf_vectorizer.pkl")
+            label_encoder = joblib.load("label_encoder.pkl")
             
-            if missing_files:
-                st.error(f"Missing deep learning model files: {', '.join(missing_files)}")
-                st.info("Please train a deep learning model first.")
-                return
-            
-            # Load deep learning components
-            with st.spinner("Loading deep learning model..."):
-                model = tf.keras.models.load_model("sentiment_dl_model.h5")
-                tokenizer = joblib.load("tokenizer.pkl")
-                label_encoder = joblib.load("label_encoder.pkl")
-                max_length = model_info.get('max_length', 200)
-        else:
-            # Check for traditional ML model files
-            required_files = ["sentiment_model.pkl", "tfidf_vectorizer.pkl", "label_encoder.pkl"]
-            missing_files = [f for f in required_files if not os.path.exists(f)]
-            
-            if missing_files:
-                st.error(f"Missing traditional ML model files: {', '.join(missing_files)}")
-                st.info("Please train a traditional ML model first.")
-                return
-            
-            # Load traditional ML components
-            with st.spinner("Loading traditional ML model..."):
-                model = joblib.load("sentiment_model.pkl")
-                vectorizer = joblib.load("tfidf_vectorizer.pkl")
-                label_encoder = joblib.load("label_encoder.pkl")
+            # Load model info if available
+            try:
+                with open("model_info.pkl", "rb") as f:
+                    model_info = pickle.load(f)
+            except:
+                model_info = {
+                    'model_type': 'Unknown',
+                    'accuracy': 'Unknown',
+                    'class_names': label_encoder.classes_.tolist()
+                }
         
         st.success("Model loaded successfully!")
         
         # Display model info
         with st.expander("Model Information"):
             st.write(f"**Model Type:** {model_info.get('model_type', 'Unknown')}")
-            st.write(f"**Accuracy:** {model_info.get('accuracy', 'Unknown'):.3f}")
+            st.write(f"**Accuracy:** {model_info.get('accuracy', 'Unknown')}")
             st.write(f"**Number of classes:** {len(model_info['class_names'])}")
             st.write(f"**Classes:** {', '.join(model_info['class_names'])}")
-            if is_deep_learning:
-                st.write(f"**Vocabulary size:** {model_info.get('vocab_size', 'Unknown')}")
-                st.write(f"**Max sequence length:** {model_info.get('max_length', 'Unknown')}")
-            else:
-                st.write(f"**Vocabulary size:** {len(vectorizer.vocabulary_)}")
+            st.write(f"**Vocabulary size:** {len(vectorizer.vocabulary_)}")
         
         # Prediction interface
         st.subheader("Enter Text for Prediction")
@@ -468,21 +254,13 @@ def predict_sentiment():
             
             if st.button("Predict Sentiment"):
                 if user_input.strip():
-                    # Preprocess text
+                    # Preprocess and predict
                     processed_text = preprocess_text(user_input)
+                    text_vectorized = vectorizer.transform([processed_text])
                     
-                    if is_deep_learning:
-                        # Deep learning prediction
-                        sequence = tokenizer.texts_to_sequences([processed_text])
-                        padded_sequence = pad_sequences(sequence, maxlen=max_length, padding='post')
-                        
-                        probabilities = model.predict(padded_sequence)[0]
-                        prediction = np.argmax(probabilities)
-                    else:
-                        # Traditional ML prediction
-                        text_vectorized = vectorizer.transform([processed_text])
-                        prediction = model.predict(text_vectorized)[0]
-                        probabilities = model.predict_proba(text_vectorized)[0]
+                    # Get prediction
+                    prediction = model.predict(text_vectorized)[0]
+                    probabilities = model.predict_proba(text_vectorized)[0]
                     
                     predicted_class = label_encoder.inverse_transform([prediction])[0]
                     confidence = np.max(probabilities)
@@ -529,22 +307,15 @@ def predict_sentiment():
                             # Preprocess texts
                             texts = df[text_column].apply(preprocess_text)
                             
-                            if is_deep_learning:
-                                # Deep learning batch prediction
-                                sequences = tokenizer.texts_to_sequences(texts)
-                                padded_sequences = pad_sequences(sequences, maxlen=max_length, padding='post')
-                                
-                                probabilities = model.predict(padded_sequences)
-                                predictions = np.argmax(probabilities, axis=1)
-                                confidences = np.max(probabilities, axis=1)
-                            else:
-                                # Traditional ML batch prediction
-                                texts_vectorized = vectorizer.transform(texts)
-                                predictions = model.predict(texts_vectorized)
-                                probabilities = model.predict_proba(texts_vectorized)
-                                confidences = np.max(probabilities, axis=1)
+                            # Vectorize
+                            texts_vectorized = vectorizer.transform(texts)
+                            
+                            # Predict
+                            predictions = model.predict(texts_vectorized)
+                            probabilities = model.predict_proba(texts_vectorized)
                             
                             predicted_classes = label_encoder.inverse_transform(predictions)
+                            confidences = np.max(probabilities, axis=1)
                             
                             # Create results dataframe
                             results_df = df.copy()
@@ -580,8 +351,6 @@ def predict_sentiment():
                 except Exception as e:
                     st.error(f"Error processing file: {str(e)}")
     
-    except FileNotFoundError:
-        st.error("No trained model found. Please train a model first.")
     except Exception as e:
         st.error(f"Error loading model: {str(e)}")
 
