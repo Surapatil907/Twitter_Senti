@@ -1,18 +1,11 @@
-# Core dependencies
 streamlit
 pandas
 numpy
-
-# Machine Learning
 scikit-learn
-
-# Model persistence
 joblib
-
-# Data visualization
-matplotlib
 seaborn
-
-# Text processing (optional but recommended)
-nltk
+matplotlib
+tensorflow
+keras
+pickle-mixin
 regex
