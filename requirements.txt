@@ -7,3 +7,21 @@ seaborn
 matplotlib
 tensorflow-cpu
 regex
+# Core dependencies
+streamlit
+pandas
+numpy
+
+# Machine Learning
+scikit-learn
+
+# Model persistence
+joblib
+
+# Data visualization
+matplotlib
+seaborn
+
+# Text processing (optional but recommended)
+nltk
+regex
